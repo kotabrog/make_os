@@ -1,6 +1,11 @@
 run:
-	qemu-system-x86_64 -bios third_party/ovmf/RELEASEX64_OVMF.fd -drive format=raw,file=fat:rw:mnt
+	cargo run
 
-build:
-	cargo build --target x86_64-unknown-uefi
-	cp target/x86_64-unknown-uefi/debug/wasabi.efi mnt/EFI/BOOT/BOOTX64.EFI
+clippy:
+	cargo clippy --all-targets --all-features -- -D warnings
+
+fmt:
+	cargo fmt --all
+
+fmt-check:
+	cargo fmt --all --check
