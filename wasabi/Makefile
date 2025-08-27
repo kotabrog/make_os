@@ -1,5 +1,11 @@
+# run:
+# 	cargo run
+
 run:
-	cargo run
+	cargo uefi-run
+
+build:
+	cargo uefi-build
 
 clippy:
 	cargo clippy --all-targets --all-features -- -D warnings
