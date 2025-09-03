@@ -177,6 +177,106 @@ fn init_vram(efi_system_table: &EfiSystemTable) -> Result<VramBufferInfo> {
     })
 }
 
+/// # Safety
+///
+/// (x, y) must be a valid point in the buf.
+unsafe fn unchecked_draw_point<T: Bitmap>(buf: &mut T, color: u32, x: i64, y: i64) {
+    *buf.unchecked_pixel_at_mut(x, y) = color;
+}
+
+fn draw_point<T: Bitmap>(buf: &mut T, color: u32, x: i64, y: i64) -> Result<()> {
+    *(buf.pixel_at_mut(x, y).ok_or("Out of range")?) = color;
+    Ok(())
+}
+
+fn fill_rect<T: Bitmap>(buf: &mut T, color: u32, px: i64, py: i64, w: i64, h: i64) -> Result<()> {
+    if !buf.is_in_x_range(px)
+        || !buf.is_in_y_range(py)
+        || !buf.is_in_x_range(px + w - 1)
+        || !buf.is_in_y_range(py + h - 1)
+    {
+        return Err("Out of range");
+    }
+    for y in py..py + h {
+        for x in px..px + w {
+            unsafe { unchecked_draw_point(buf, color, x, y) }
+        }
+    }
+    Ok(())
+}
+
+fn calc_slope_point(da: i64, db: i64, ia: i64) -> Option<i64> {
+    if da < db {
+        None
+    } else if da == 0 {
+        Some(0)
+    } else if (0..=da).contains(&ia) {
+        Some((2 * db * ia + da) / da / 2)
+    } else {
+        None
+    }
+}
+
+fn draw_line<T: Bitmap>(buf: &mut T, color: u32, x0: i64, y0: i64, x1: i64, y1: i64) -> Result<()> {
+    if !buf.is_in_x_range(x0)
+        || !buf.is_in_y_range(y0)
+        || !buf.is_in_x_range(x1)
+        || !buf.is_in_y_range(y1)
+    {
+        return Err("Out of range");
+    }
+    let dx = (x1 - x0).abs();
+    let sx = (x1 - x0).signum();
+    let dy = (y1 - y0).abs();
+    let sy = (y1 - y0).signum();
+    if dx >= dy {
+        for (rx, ry) in (0..dx)
+            .flat_map(|rx| calc_slope_point(dx, dy, rx).map(|ry| (rx, ry)))
+        {
+            draw_point(buf, color, x0 + rx * sx, y0 + ry * sy)?;
+        }
+    } else {
+        for (ry, rx) in (0..dy)
+            .flat_map(|ry| calc_slope_point(dy, dx, ry).map(|rx| (ry, rx)))
+        {
+            draw_point(buf, color, x0 + rx * sx, y0 + ry * sy)?;
+        }
+    }
+    Ok(())
+}
+
+fn draw_font_fg<T: Bitmap>(buf: &mut T, x: i64, y: i64, color: u32, c: char) {
+    if let Ok(_c) = u8::try_from(c) {
+        let font_a = "
+........
+...**...
+...**...
+...**...
+...**...
+..*..*..
+..*..*..
+..*..*..
+..*..*..
+.******.
+.*....*.
+.*....*.
+.*....*.
+***..***
+........
+........
+";
+        for (dy, row) in font_a.trim().split('\n').enumerate() {
+            for (dx, pixel) in row.chars().enumerate() {
+                let color = match pixel {
+                    '*' => color,
+                    _ => continue,
+                };
+                let _ = draw_point(buf, color, x + dx as i64, y + dy as i64);
+            }
+        }
+    }
+}
+
 #[no_mangle]
 fn efi_main(_image_handle: EfiHandle, efi_system_table: &EfiSystemTable) {
     // let efi_graphics_output_protocol = locate_graphic_protocol(efi_system_table).unwrap();
@@ -189,19 +289,47 @@ fn efi_main(_image_handle: EfiHandle, efi_system_table: &EfiSystemTable) {
     //     *e = 0xffffff;
     // }
     let mut vram = init_vram(efi_system_table).expect("Failed to initialize VRAM");
-    for y in 0..vram.height() {
-        for x in 0..vram.width() {
-            if let Some(pixel) = vram.pixel_at_mut(x, y) {
-                *pixel = 0x00ff00; // Green
-            }
-        }
+    // for y in 0..vram.height() {
+    //     for x in 0..vram.width() {
+    //         if let Some(pixel) = vram.pixel_at_mut(x, y) {
+    //             *pixel = 0x00ff00; // Green
+    //         }
+    //     }
+    // }
+    // for y in 0..vram.height() / 2 {
+    //     for x in 0..vram.width() / 2 {
+    //         if let Some(pixel) = vram.pixel_at_mut(x, y) {
+    //             *pixel = 0xff0000; // Red
+    //         }
+    //     }
+    // }
+    let vw = vram.width();
+    let vh = vram.height();
+    fill_rect(&mut vram, 0x000000, 0, 0, vw, vh).expect("Failed to fill rect");
+    fill_rect(&mut vram, 0xff0000, 32, 32, 32, 32).expect("Failed to fill rect");
+    fill_rect(&mut vram, 0x00ff00, 64, 64, 64, 64).expect("Failed to fill rect");
+    fill_rect(&mut vram, 0x0000ff, 128, 128, 128, 128).expect("Failed to fill rect");
+    for i in 0..256 {
+        let _ = draw_point(&mut vram, 0x010101 * i as u32, i, i);
     }
-    for y in 0..vram.height() / 2 {
-        for x in 0..vram.width() / 2 {
-            if let Some(pixel) = vram.pixel_at_mut(x, y) {
-                *pixel = 0xff0000; // Red
-            }
-        }
+
+    let grid_size: i64 = 32;
+    let rect_size: i64 = grid_size * 8;
+    for i in (0..=rect_size).step_by(grid_size as usize) {
+        let _ = draw_line(&mut vram, 0xff0000, 0, i, rect_size, i);
+        let _ = draw_line(&mut vram, 0xff0000, i, 0, i, rect_size);
+    }
+    let cx = rect_size / 2;
+    let cy = rect_size / 2;
+    for i in (0..=rect_size).step_by(grid_size as usize) {
+        let _ = draw_line(&mut vram, 0xffff00, cx, cy, 0,i);
+        let _ = draw_line(&mut vram, 0x00ffff, cx, cy, i,0);
+        let _ = draw_line(&mut vram, 0xff00ff, cx, cy, rect_size,i);
+        let _ = draw_line(&mut vram, 0xffffff, cx, cy, i,rect_size);
+    }
+
+    for (i, c) in "ABCDEF".chars().enumerate() {
+        draw_font_fg(&mut vram, i as i64 * 16 + 256, i as i64 * 16, 0xffffff, c);
     }
     loop {
         hlt()
