@@ -92,8 +92,7 @@ impl<'a> Iterator for MemoryMapIterator<'a> {
             None
         } else {
             let e: &EfiMemoryDescriptor = unsafe {
-                &*(self.map.memory_map_buffer.as_ptr().add(self.ofs)
-                    as *const EfiMemoryDescriptor)
+                &*(self.map.memory_map_buffer.as_ptr().add(self.ofs) as *const EfiMemoryDescriptor)
             };
             self.ofs += self.map.descriptor_size;
             Some(e)
@@ -127,7 +126,9 @@ struct EfiBootServicesTable {
         descriptor_size: *mut usize,
         descriptor_version: *mut u32,
     ) -> EfiStatus,
-    _reserved1: [u64; 32],
+    _reserved1: [u64; 21],
+    exit_boot_services: extern "win64" fn(image_handle: EfiHandle, map_key: usize) -> EfiStatus,
+    _reserved2: [u64; 10],
     locate_protocol: extern "win64" fn(
         protocol: *const EfiGuid,
         registration: *const EfiVoid,
@@ -148,6 +149,7 @@ impl EfiBootServicesTable {
 }
 
 const _: () = assert!(offset_of!(EfiBootServicesTable, get_memory_map) == 56);
+const _: () = assert!(offset_of!(EfiBootServicesTable, exit_boot_services) == 232);
 const _: () = assert!(offset_of!(EfiBootServicesTable, locate_protocol) == 320);
 
 #[repr(C)]
@@ -217,9 +219,9 @@ trait Bitmap {
     /// Returned pointer is valid as ling as the given corrdinates are valid.
     /// which means that passing is _in_*_range tests.
     unsafe fn unchecked_pixel_at_mut(&mut self, x: i64, y: i64) -> *mut u32 {
-        self.buf_mut().add(
-            ((y * self.pixels_per_line() + x) * self.bytes_per_pixel()) as usize,
-        ) as *mut u32
+        self.buf_mut()
+            .add(((y * self.pixels_per_line() + x) * self.bytes_per_pixel()) as usize)
+            as *mut u32
     }
 
     fn pixel_at_mut(&mut self, x: i64, y: i64) -> Option<&mut u32> {
@@ -333,15 +335,11 @@ fn draw_line<T: Bitmap>(buf: &mut T, color: u32, x0: i64, y0: i64, x1: i64, y1: 
     let dy = (y1 - y0).abs();
     let sy = (y1 - y0).signum();
     if dx >= dy {
-        for (rx, ry) in (0..dx)
-            .flat_map(|rx| calc_slope_point(dx, dy, rx).map(|ry| (rx, ry)))
-        {
+        for (rx, ry) in (0..dx).flat_map(|rx| calc_slope_point(dx, dy, rx).map(|ry| (rx, ry))) {
             draw_point(buf, color, x0 + rx * sx, y0 + ry * sy)?;
         }
     } else {
-        for (ry, rx) in (0..dy)
-            .flat_map(|ry| calc_slope_point(dy, dx, ry).map(|rx| (ry, rx)))
-        {
+        for (ry, rx) in (0..dy).flat_map(|ry| calc_slope_point(dy, dx, ry).map(|rx| (ry, rx))) {
             draw_point(buf, color, x0 + rx * sx, y0 + ry * sy)?;
         }
     }
@@ -427,62 +425,51 @@ impl fmt::Write for VramTextWriter<'_> {
     }
 }
 
+fn exit_from_efi_boot_services(
+    image_handle: EfiHandle,
+    efi_system_table: &EfiSystemTable,
+    memory_map: &mut MemoryMapHolder,
+) {
+    loop {
+        let status = efi_system_table.boot_services.get_memory_map(memory_map);
+        assert_eq!(status, EfiStatus::Success);
+        let status =
+            (efi_system_table.boot_services.exit_boot_services)(image_handle, memory_map.map_key);
+        if status == EfiStatus::Success {
+            break;
+        }
+    }
+}
+
+fn draw_test_pattern<T: Bitmap>(buf: &mut T) {
+    let w = 128;
+    let left = buf.width() - w - 1;
+    let colors = [0x000000, 0xff0000, 0x00ff00, 0x0000ff];
+    let h = 64;
+    for (i, c) in colors.iter().enumerate() {
+        let y = i as i64 * h;
+        fill_rect(buf, *c, left, y, w / 2, h).expect("Failed to fill rect");
+        fill_rect(buf, !*c, left + w / 2, y, w / 2, h).expect("Failed to fill rect");
+    }
+    let points = [(0, 0), (0, w), (w, 0), (w, w)];
+    for (x0, y0) in points.iter() {
+        for (x1, y1) in points.iter() {
+            let _ = draw_line(buf, 0xffffff, left + *x0, *y0, left + *x1, *y1);
+        }
+    }
+    draw_str_fg(buf, left, h * colors.len() as i64, 0x00ff00, "0123456789");
+    draw_str_fg(buf, left, h * colors.len() as i64 + 16, 0x00ff00, "ABCDEF");
+}
+
 #[no_mangle]
-fn efi_main(_image_handle: EfiHandle, efi_system_table: &EfiSystemTable) {
-    // let efi_graphics_output_protocol = locate_graphic_protocol(efi_system_table).unwrap();
-    // let vram_addr = efi_graphics_output_protocol.mode.frame_buffer_base;
-    // let vram_byte_size = efi_graphics_output_protocol.mode.frame_buffer_size;
-    // let vram = unsafe {
-    //     slice::from_raw_parts_mut(vram_addr as *mut u32, vram_byte_size / size_of::<u32>())
-    // };
-    // for e in vram {
-    //     *e = 0xffffff;
-    // }
+fn efi_main(image_handle: EfiHandle, efi_system_table: &EfiSystemTable) {
     let mut vram = init_vram(efi_system_table).expect("Failed to initialize VRAM");
-    // for y in 0..vram.height() {
-    //     for x in 0..vram.width() {
-    //         if let Some(pixel) = vram.pixel_at_mut(x, y) {
-    //             *pixel = 0x00ff00; // Green
-    //         }
-    //     }
-    // }
-    // for y in 0..vram.height() / 2 {
-    //     for x in 0..vram.width() / 2 {
-    //         if let Some(pixel) = vram.pixel_at_mut(x, y) {
-    //             *pixel = 0xff0000; // Red
-    //         }
-    //     }
-    // }
+
     let vw = vram.width();
     let vh = vram.height();
     fill_rect(&mut vram, 0x000000, 0, 0, vw, vh).expect("Failed to fill rect");
-    fill_rect(&mut vram, 0xff0000, 32, 32, 32, 32).expect("Failed to fill rect");
-    fill_rect(&mut vram, 0x00ff00, 64, 64, 64, 64).expect("Failed to fill rect");
-    fill_rect(&mut vram, 0x0000ff, 128, 128, 128, 128).expect("Failed to fill rect");
-    for i in 0..256 {
-        let _ = draw_point(&mut vram, 0x010101 * i as u32, i, i);
-    }
 
-    let grid_size: i64 = 32;
-    let rect_size: i64 = grid_size * 8;
-    for i in (0..=rect_size).step_by(grid_size as usize) {
-        let _ = draw_line(&mut vram, 0xff0000, 0, i, rect_size, i);
-        let _ = draw_line(&mut vram, 0xff0000, i, 0, i, rect_size);
-    }
-    let cx = rect_size / 2;
-    let cy = rect_size / 2;
-    for i in (0..=rect_size).step_by(grid_size as usize) {
-        let _ = draw_line(&mut vram, 0xffff00, cx, cy, 0,i);
-        let _ = draw_line(&mut vram, 0x00ffff, cx, cy, i,0);
-        let _ = draw_line(&mut vram, 0xff00ff, cx, cy, rect_size,i);
-        let _ = draw_line(&mut vram, 0xffffff, cx, cy, i,rect_size);
-    }
-
-    for (i, c) in "ABCDEF".chars().enumerate() {
-        draw_font_fg(&mut vram, i as i64 * 16 + 256, i as i64 * 16, 0xffffff, c);
-    }
-
-    draw_str_fg(&mut vram, 256, 256, 0xffffff, "Hello, world!");
+    draw_test_pattern(&mut vram);
 
     let mut w = VramTextWriter::new(&mut vram);
     for i in 0..4 {
@@ -503,7 +490,15 @@ fn efi_main(_image_handle: EfiHandle, efi_system_table: &EfiSystemTable) {
         writeln!(w, "{e:?}").unwrap();
     }
     let total_memory_size_mib = total_memory_pages * 4096 / 1024 / 1024;
-    writeln!(w, "Total: {total_memory_pages} pages = {total_memory_size_mib} MiB").unwrap();
+    writeln!(
+        w,
+        "Total: {total_memory_pages} pages = {total_memory_size_mib} MiB"
+    )
+    .unwrap();
+
+    exit_from_efi_boot_services(image_handle, efi_system_table, &mut memory_map);
+
+    writeln!(w, "Hello, Non-UEFI World!").unwrap();
 
     loop {
         hlt()
