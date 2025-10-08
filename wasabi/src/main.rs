@@ -2,9 +2,7 @@
 #![no_main]
 #![feature(offset_of)]
 
-use core::arch::asm;
 use core::fmt::Write;
-use core::panic::PanicInfo;
 use core::writeln;
 use wasabi::graphics::{
     draw_test_pattern, fill_rect, Bitmap,
@@ -12,10 +10,7 @@ use wasabi::graphics::{
 use wasabi::uefi::{
     exit_from_efi_boot_services, init_vram, EfiHandle, EfiMemoryType, EfiSystemTable, MemoryMapHolder, VramTextWriter,
 };
-
-pub fn hlt() {
-    unsafe { asm!("hlt") }
-}
+use wasabi::x86::hlt;
 
 #[no_mangle]
 fn efi_main(image_handle: EfiHandle, efi_system_table: &EfiSystemTable) {
@@ -61,10 +56,8 @@ fn efi_main(image_handle: EfiHandle, efi_system_table: &EfiSystemTable) {
     }
 }
 
-#[cfg(not(test))]
+#[cfg(all(not(test), not(feature = "std")))]
 #[panic_handler]
-fn panic(_info: &PanicInfo) -> ! {
-    loop {
-        hlt()
-    }
+fn panic(_info: &core::panic::PanicInfo) -> ! {
+    wasabi::qemu::exit_qemu(wasabi::qemu::QemuExitCode::Fail)
 }

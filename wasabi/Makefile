@@ -1,17 +1,17 @@
-# run:
-# 	cargo run
-
 run:
-	cargo uefi-run
+	cargo run
 
 build:
-	cargo uefi-build
+	cargo build
 
 clippy:
-	cargo clippy --all-targets --all-features -- -D warnings
+	cargo clippy
 
 fmt:
 	cargo fmt --all
 
 fmt-check:
 	cargo fmt --all --check
+
+test:
+	cargo test
