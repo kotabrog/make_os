@@ -4,11 +4,10 @@
 
 use core::fmt::Write;
 use core::writeln;
-use wasabi::graphics::{
-    draw_test_pattern, fill_rect, Bitmap,
-};
+use wasabi::graphics::{draw_test_pattern, fill_rect, Bitmap};
 use wasabi::uefi::{
-    exit_from_efi_boot_services, init_vram, EfiHandle, EfiMemoryType, EfiSystemTable, MemoryMapHolder, VramTextWriter,
+    exit_from_efi_boot_services, init_vram, EfiHandle, EfiMemoryType, EfiSystemTable,
+    MemoryMapHolder, VramTextWriter,
 };
 use wasabi::x86::hlt;
 

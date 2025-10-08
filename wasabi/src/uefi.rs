@@ -1,6 +1,4 @@
-use crate::graphics::{
-    draw_font_fg, Bitmap
-};
+use crate::graphics::{draw_font_fg, Bitmap};
 use crate::result::Result;
 use core::fmt;
 use core::mem::offset_of;
@@ -9,7 +7,6 @@ use core::ptr::null_mut;
 
 type EfiVoid = u8;
 pub type EfiHandle = u64;
-
 
 #[repr(C)]
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -33,7 +30,6 @@ const EFI_GRAPHICS_OUTPUT_PROTOCOL_GUID: EfiGuid = EfiGuid {
 pub enum EfiStatus {
     Success = 0,
 }
-
 
 #[repr(i64)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -129,7 +125,6 @@ impl Default for MemoryMapHolder {
     }
 }
 
-
 #[repr(C)]
 pub struct EfiBootServicesTable {
     _reserved0: [u64; 7],
@@ -165,7 +160,6 @@ impl EfiBootServicesTable {
 const _: () = assert!(offset_of!(EfiBootServicesTable, get_memory_map) == 56);
 const _: () = assert!(offset_of!(EfiBootServicesTable, exit_boot_services) == 232);
 const _: () = assert!(offset_of!(EfiBootServicesTable, locate_protocol) == 320);
-
 
 #[repr(C)]
 pub struct EfiSystemTable {

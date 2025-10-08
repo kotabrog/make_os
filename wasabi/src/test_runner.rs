@@ -1,7 +1,7 @@
 use crate::qemu::{exit_qemu, QemuExitCode};
 use core::panic::PanicInfo;
 
-pub fn test_runner(_tests: &[&dyn FnOnce()]) -> !{
+pub fn test_runner(_tests: &[&dyn FnOnce()]) -> ! {
     exit_qemu(QemuExitCode::Success)
 }
 
