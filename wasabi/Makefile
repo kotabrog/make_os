@@ -15,3 +15,5 @@ fmt-check:
 
 test:
 	cargo test
+
+all-check: fmt-check clippy test
