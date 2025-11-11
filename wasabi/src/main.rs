@@ -5,12 +5,22 @@
 use core::fmt::Write;
 use core::writeln;
 use wasabi::graphics::{draw_test_pattern, fill_rect, Bitmap};
+use wasabi::print::hexdump;
+use wasabi::{println, info, warn, error};
 use wasabi::init::init_basic_runtime;
 use wasabi::uefi::{init_vram, EfiHandle, EfiMemoryType, EfiSystemTable, VramTextWriter};
 use wasabi::x86::hlt;
 
 #[no_mangle]
 fn efi_main(image_handle: EfiHandle, efi_system_table: &EfiSystemTable) {
+    println!("Booting WasabiOS...");
+    println!("image_handle: {:#018X}", image_handle);
+    println!("efi_system_table: {:#p}", efi_system_table);
+    info!("info");
+    warn!("warn");
+    error!("error");
+    hexdump(efi_system_table);
+
     let mut vram = init_vram(efi_system_table).expect("Failed to initialize VRAM");
 
     let vw = vram.width();
@@ -47,7 +57,7 @@ fn efi_main(image_handle: EfiHandle, efi_system_table: &EfiSystemTable) {
 
 #[cfg(all(not(test), not(feature = "std")))]
 #[panic_handler]
-fn panic(_info: &core::panic::PanicInfo) -> ! {
-    #[warn(unused_imports)]
+fn panic(info: &core::panic::PanicInfo) -> ! {
+    error!("PANIC: {info:?}");
     wasabi::qemu::exit_qemu(wasabi::qemu::QemuExitCode::Fail)
 }
