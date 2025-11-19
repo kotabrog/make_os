@@ -50,6 +50,10 @@ fn efi_main(image_handle: EfiHandle, efi_system_table: &EfiSystemTable) {
 
     writeln!(w, "Hello, Non-UEFI World!").unwrap();
 
+    let cr3 = wasabi::x86::read_cr3();
+    println!("CR3: {cr3:#p}");
+    hexdump(unsafe { &*cr3 });
+
     loop {
         hlt()
     }
