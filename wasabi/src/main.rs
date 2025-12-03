@@ -9,7 +9,7 @@ use wasabi::print::hexdump;
 use wasabi::{println, info, warn, error};
 use wasabi::init::init_basic_runtime;
 use wasabi::uefi::{init_vram, EfiHandle, EfiMemoryType, EfiSystemTable, VramTextWriter};
-use wasabi::x86::hlt;
+use wasabi::x86::{hlt, init_exceptions, trigger_debug_interrupt};
 
 #[no_mangle]
 fn efi_main(image_handle: EfiHandle, efi_system_table: &EfiSystemTable) {
@@ -60,6 +60,10 @@ fn efi_main(image_handle: EfiHandle, efi_system_table: &EfiSystemTable) {
     println!("{t:?}");
     let t = t.and_then(|t| t.next_level(0));
     println!("{t:?}");
+
+    let (_gdt, _idt) = init_exceptions();
+    info!("Exception initialized!");
+    trigger_debug_interrupt();
 
     loop {
         hlt()
