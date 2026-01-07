@@ -8,7 +8,7 @@ use wasabi::graphics::{draw_test_pattern, fill_rect, Bitmap};
 use wasabi::print::hexdump;
 use wasabi::{println, info, warn, error};
 use wasabi::init::init_basic_runtime;
-use wasabi::uefi::{init_vram, EfiHandle, EfiMemoryType, EfiSystemTable, VramTextWriter};
+use wasabi::uefi::{init_vram, EfiHandle, EfiMemoryType, EfiSystemTable, VramTextWriter, locate_loaded_image_protocol};
 use wasabi::x86::{hlt, init_exceptions, trigger_debug_interrupt};
 
 #[no_mangle]
@@ -16,6 +16,12 @@ fn efi_main(image_handle: EfiHandle, efi_system_table: &EfiSystemTable) {
     println!("Booting WasabiOS...");
     println!("image_handle: {:#018X}", image_handle);
     println!("efi_system_table: {:#p}", efi_system_table);
+
+    let loaded_image_protocol = locate_loaded_image_protocol(image_handle, efi_system_table)
+        .expect("Failed to locate Loaded Image Protocol");
+    println!("image_base: {:#018X}", loaded_image_protocol.image_base);
+    println!("image_size: {:#018X}", loaded_image_protocol.image_size);
+
     info!("info");
     warn!("warn");
     error!("error");
@@ -64,6 +70,7 @@ fn efi_main(image_handle: EfiHandle, efi_system_table: &EfiSystemTable) {
     let (_gdt, _idt) = init_exceptions();
     info!("Exception initialized!");
     trigger_debug_interrupt();
+    info!("Execution continued");
 
     loop {
         hlt()
