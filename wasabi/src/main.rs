@@ -7,7 +7,7 @@ use core::writeln;
 use wasabi::graphics::{draw_test_pattern, fill_rect, Bitmap};
 use wasabi::print::hexdump;
 use wasabi::{println, info, warn, error};
-use wasabi::init::init_basic_runtime;
+use wasabi::init::{init_basic_runtime, init_paging};
 use wasabi::uefi::{init_vram, EfiHandle, EfiMemoryType, EfiSystemTable, VramTextWriter, locate_loaded_image_protocol};
 use wasabi::x86::{hlt, init_exceptions, trigger_debug_interrupt};
 
@@ -71,6 +71,9 @@ fn efi_main(image_handle: EfiHandle, efi_system_table: &EfiSystemTable) {
     info!("Exception initialized!");
     trigger_debug_interrupt();
     info!("Execution continued");
+
+    init_paging(&memory_map);
+    info!("Now we are using our own page tables!");
 
     loop {
         hlt()
