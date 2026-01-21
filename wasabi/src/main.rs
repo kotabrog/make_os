@@ -9,7 +9,7 @@ use wasabi::print::hexdump;
 use wasabi::{println, info, warn, error};
 use wasabi::init::{init_basic_runtime, init_paging};
 use wasabi::uefi::{init_vram, EfiHandle, EfiMemoryType, EfiSystemTable, VramTextWriter, locate_loaded_image_protocol};
-use wasabi::x86::{hlt, init_exceptions, trigger_debug_interrupt};
+use wasabi::x86::{hlt, init_exceptions, trigger_debug_interrupt, PageAttr, flush_tlb, read_cr3};
 
 #[no_mangle]
 fn efi_main(image_handle: EfiHandle, efi_system_table: &EfiSystemTable) {
@@ -74,6 +74,15 @@ fn efi_main(image_handle: EfiHandle, efi_system_table: &EfiSystemTable) {
 
     init_paging(&memory_map);
     info!("Now we are using our own page tables!");
+
+    // Unmap page 0 ti detect null ptr dereference
+    let page_table = read_cr3();
+    unsafe {
+        (*page_table)
+            .create_mapping(0, 4096, 0, PageAttr::NotPresent)
+            .expect("Failed to unmap page 0");
+    }
+    flush_tlb();
 
     loop {
         hlt()

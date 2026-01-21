@@ -252,6 +252,11 @@ pub unsafe fn write_cr3(table: *mut PML4) {
     asm!("mov cr3, rax", in("rax") table);
 }
 
+pub fn flush_tlb() {
+    unsafe {
+        write_cr3(read_cr3());
+    }
+}
 
 /// # Safety
 /// Anything can happen if the given selector is invalid.
