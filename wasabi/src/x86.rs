@@ -5,7 +5,7 @@ use crate::info;
 use crate::result::Result;
 use alloc::boxed::Box;
 use core::arch::asm;
-use core:: arch::global_asm;
+use core::arch::global_asm;
 use core::fmt;
 use core::marker::PhantomData;
 use core::mem::offset_of;
@@ -64,7 +64,7 @@ pub struct Entry<const LEVEL: usize, const SHIFT: usize, NEXT> {
     next_type: PhantomData<NEXT>,
 }
 
-impl <const LEVEL: usize, const SHIFT: usize, NEXT> Entry<LEVEL, SHIFT, NEXT> {
+impl<const LEVEL: usize, const SHIFT: usize, NEXT> Entry<LEVEL, SHIFT, NEXT> {
     fn read_value(&self) -> u64 {
         self.value
     }
@@ -84,22 +84,20 @@ impl <const LEVEL: usize, const SHIFT: usize, NEXT> Entry<LEVEL, SHIFT, NEXT> {
     fn format(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "L{}Entry @ {:#p} {{ {:#018X} {}{}{} ", 
-                LEVEL,
-                self,
-                self.read_value(),
-                if self.is_present() { "P" } else { "N" },
-                if self.is_writable() { "W" } else { "R" },
-                if self.is_user() { "U" } else { "S" }
+            "L{}Entry @ {:#p} {{ {:#018X} {}{}{} ",
+            LEVEL,
+            self,
+            self.read_value(),
+            if self.is_present() { "P" } else { "N" },
+            if self.is_writable() { "W" } else { "R" },
+            if self.is_user() { "U" } else { "S" }
         )?;
         write!(f, "}}")
     }
 
     fn table(&self) -> Result<&NEXT> {
         if self.is_present() {
-            Ok(unsafe {
-                &*((self.read_value() & !ATTR_MASK) as *const NEXT)
-            })
+            Ok(unsafe { &*((self.read_value() & !ATTR_MASK) as *const NEXT) })
         } else {
             Err("Page Not Found")
         }
@@ -107,9 +105,7 @@ impl <const LEVEL: usize, const SHIFT: usize, NEXT> Entry<LEVEL, SHIFT, NEXT> {
 
     fn table_mut(&mut self) -> Result<&mut NEXT> {
         if self.is_present() {
-            Ok(unsafe {
-                &mut *((self.read_value() & !ATTR_MASK) as *mut NEXT)
-            })
+            Ok(unsafe { &mut *((self.read_value() & !ATTR_MASK) as *mut NEXT) })
         } else {
             Err("Page Not Found")
         }
@@ -128,9 +124,7 @@ impl <const LEVEL: usize, const SHIFT: usize, NEXT> Entry<LEVEL, SHIFT, NEXT> {
         if self.is_present() {
             Err("Page is already populated")
         } else {
-            let next: Box<NEXT> = Box::new(unsafe {
-                MaybeUninit::zeroed().assume_init()
-            });
+            let next: Box<NEXT> = Box::new(unsafe { MaybeUninit::zeroed().assume_init() });
             self.value = (Box::into_raw(next) as u64) | (PageAttr::ReadWriteKernel as u64);
             Ok(self)
         }
@@ -184,7 +178,9 @@ impl<const LEVEL: usize, const SHIFT: usize, NEXT: fmt::Debug> Table<LEVEL, SHIF
     }
 }
 
-impl<const LEVEL: usize, const SHIFT: usize, NEXT: fmt::Debug> fmt::Debug for Table<LEVEL, SHIFT, NEXT> {
+impl<const LEVEL: usize, const SHIFT: usize, NEXT: fmt::Debug> fmt::Debug
+    for Table<LEVEL, SHIFT, NEXT>
+{
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         self.format(f)
     }
@@ -332,7 +328,7 @@ struct GeneralRegisterContext {
     rcx: u64,
 }
 
-const _:() = assert!(size_of::<GeneralRegisterContext>() == (16 - 1) * 8);
+const _: () = assert!(size_of::<GeneralRegisterContext>() == (16 - 1) * 8);
 
 #[allow(dead_code)]
 #[repr(C)]
@@ -345,7 +341,7 @@ struct InterruptContext {
     ss: u64,
 }
 
-const _:() = assert!(size_of::<InterruptContext>() == 8 * 5);
+const _: () = assert!(size_of::<InterruptContext>() == 8 * 5);
 
 #[allow(dead_code)]
 #[repr(C)]
@@ -361,7 +357,7 @@ struct InterruptInfo {
     ctx: InterruptContext,
 }
 
-const _:() = assert!(size_of::<InterruptInfo>() == (16 + 4 + 1) * 8 + 8 + 512);
+const _: () = assert!(size_of::<InterruptInfo>() == (16 + 4 + 1) * 8 + 8 + 512);
 
 impl fmt::Debug for InterruptInfo {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -777,7 +773,7 @@ impl TaskStateSegment64 {
             _rsp: [rsp0, 0, 0],
             _ist: ist,
             _reserved1: [0; 5],
-            _io_map_base_addr: 0
+            _io_map_base_addr: 0,
         };
         let this = Self {
             inner: Box::pin(tss64),

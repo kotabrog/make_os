@@ -35,13 +35,9 @@ impl<T> Task<T> {
     }
 }
 
-impl <T> Debug for Task<T> {
+impl<T> Debug for Task<T> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(
-            f,
-            "Task({}:{})",
-            self.created_at_file, self.created_at_line
-        )
+        write!(f, "Task({}:{})", self.created_at_file, self.created_at_line)
     }
 }
 

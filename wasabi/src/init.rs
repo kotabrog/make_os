@@ -1,11 +1,12 @@
 extern crate alloc;
 
 use crate::allocator::ALLOCATOR;
-use crate::uefi::{exit_from_efi_boot_services, EfiHandle, EfiMemoryType::*, EfiSystemTable, MemoryMapHolder};
+use crate::uefi::{
+    exit_from_efi_boot_services, EfiHandle, EfiMemoryType::*, EfiSystemTable, MemoryMapHolder,
+};
 use crate::x86::{write_cr3, PageAttr, PAGE_SIZE, PML4};
 use alloc::boxed::Box;
 use core::cmp::max;
-
 
 pub fn init_basic_runtime(
     image_handle: EfiHandle,
@@ -31,12 +32,9 @@ pub fn init_paging(memory_type: &MemoryMapHolder) {
             _ => (),
         }
     }
-    table.create_mapping(
-        0,
-        end_of_mem,
-        0,
-        PageAttr::ReadWriteKernel,
-    ).expect("Failed to create initial page mapping");
+    table
+        .create_mapping(0, end_of_mem, 0, PageAttr::ReadWriteKernel)
+        .expect("Failed to create initial page mapping");
     unsafe {
         write_cr3(Box::into_raw(table));
     }

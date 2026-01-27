@@ -4,13 +4,16 @@
 
 use core::fmt::Write;
 use core::writeln;
-use wasabi::executor::{Executor, Task, yield_execution};
+use wasabi::executor::{yield_execution, Executor, Task};
 use wasabi::graphics::{draw_test_pattern, fill_rect, Bitmap};
-use wasabi::print::hexdump;
-use wasabi::{println, info, warn, error};
 use wasabi::init::{init_basic_runtime, init_paging};
-use wasabi::uefi::{init_vram, EfiHandle, EfiMemoryType, EfiSystemTable, VramTextWriter, locate_loaded_image_protocol};
-use wasabi::x86::{init_exceptions, trigger_debug_interrupt, PageAttr, flush_tlb, read_cr3};
+use wasabi::print::hexdump;
+use wasabi::uefi::{
+    init_vram, locate_loaded_image_protocol, EfiHandle, EfiMemoryType, EfiSystemTable,
+    VramTextWriter,
+};
+use wasabi::x86::{flush_tlb, init_exceptions, read_cr3, trigger_debug_interrupt, PageAttr};
+use wasabi::{error, info, println, warn};
 
 #[no_mangle]
 fn efi_main(image_handle: EfiHandle, efi_system_table: &EfiSystemTable) {

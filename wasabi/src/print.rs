@@ -61,7 +61,8 @@ fn hexdump_bytes(bytes: &[u8]) {
                     match c {
                         0x20..=0x7e => *c as char,
                         _ => '.',
-                    })
+                    }
+                )
             }
             println!("|");
             offset += 16;
@@ -89,7 +90,5 @@ fn hexdump_bytes(bytes: &[u8]) {
 }
 
 pub fn hexdump<T: Sized>(data: &T) {
-    hexdump_bytes(unsafe {
-        slice::from_raw_parts(data as *const T as *const u8, size_of::<T>())
-    });
+    hexdump_bytes(unsafe { slice::from_raw_parts(data as *const T as *const u8, size_of::<T>()) });
 }
