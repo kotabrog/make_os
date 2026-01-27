@@ -775,10 +775,9 @@ impl TaskStateSegment64 {
             _reserved1: [0; 5],
             _io_map_base_addr: 0,
         };
-        let this = Self {
+        Self {
             inner: Box::pin(tss64),
-        };
-        this
+        }
     }
 }
 
