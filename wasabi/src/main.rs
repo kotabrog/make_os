@@ -4,13 +4,13 @@
 
 use core::fmt::Write;
 use core::writeln;
-use wasabi::executor::block_on;
+use wasabi::executor::{Executor, Task, yield_execution};
 use wasabi::graphics::{draw_test_pattern, fill_rect, Bitmap};
 use wasabi::print::hexdump;
 use wasabi::{println, info, warn, error};
 use wasabi::init::{init_basic_runtime, init_paging};
 use wasabi::uefi::{init_vram, EfiHandle, EfiMemoryType, EfiSystemTable, VramTextWriter, locate_loaded_image_protocol};
-use wasabi::x86::{hlt, init_exceptions, trigger_debug_interrupt, PageAttr, flush_tlb, read_cr3};
+use wasabi::x86::{init_exceptions, trigger_debug_interrupt, PageAttr, flush_tlb, read_cr3};
 
 #[no_mangle]
 fn efi_main(image_handle: EfiHandle, efi_system_table: &EfiSystemTable) {
@@ -85,15 +85,24 @@ fn efi_main(image_handle: EfiHandle, efi_system_table: &EfiSystemTable) {
     }
     flush_tlb();
 
-    let result = block_on(async {
-        info!("Hello from the async world!");
+    let task1 = Task::new(async {
+        for i in 100..=103 {
+            info!("{i}");
+            yield_execution().await;
+        }
         Ok(())
     });
-    info!("block_on completed! result = {result:?}");
-
-    loop {
-        hlt()
-    }
+    let task2 = Task::new(async {
+        for i in 200..=203 {
+            info!("{i}");
+            yield_execution().await;
+        }
+        Ok(())
+    });
+    let mut executor = Executor::new();
+    executor.enqueue(task1);
+    executor.enqueue(task2);
+    Executor::run(executor);
 }
 
 #[cfg(all(not(test), not(feature = "std")))]
