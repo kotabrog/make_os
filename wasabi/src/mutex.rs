@@ -1,11 +1,11 @@
 //! Simple thread-safe mutex
-//! 
+//!
 //! As the doc of SyncUnsafeCell syas,
 //! `SyncUnsafeCell::get()` can be used to get
 //! `*mut T` from `&SyncUnsafeCell<T>` but we must
 //! ensure that the access to the object pointed
 //! is unique before dereferencing it.
-//! 
+//!
 //! This mutex protects the data with AtomicBool
 //! to ensure that the access to the contents
 //! is unique so taking a mutable reference

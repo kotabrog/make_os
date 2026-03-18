@@ -3,10 +3,11 @@
 #![feature(offset_of)]
 
 use core::fmt::Write;
+use core::time::Duration;
 use core::writeln;
-use wasabi::executor::{yield_execution, Executor, Task};
+use wasabi::executor::{Executor, Task, TimeoutFuture};
 use wasabi::graphics::{draw_test_pattern, fill_rect, Bitmap};
-use wasabi::hpet::{Hpet, global_timestamp, set_global_hpet};
+use wasabi::hpet::{global_timestamp, set_global_hpet, Hpet};
 use wasabi::init::{init_basic_runtime, init_paging};
 use wasabi::print::hexdump;
 use wasabi::uefi::{
@@ -103,14 +104,14 @@ fn efi_main(image_handle: EfiHandle, efi_system_table: &EfiSystemTable) {
     let task1 = Task::new(async move {
         for i in 100..=103 {
             info!("{i} hpet.main_counter = {:?}", global_timestamp() - t0);
-            yield_execution().await;
+            TimeoutFuture::new(Duration::from_secs(1)).await;
         }
         Ok(())
     });
     let task2 = Task::new(async move {
         for i in 200..=203 {
             info!("{i} hpet.main_counter = {:?}", global_timestamp() - t0);
-            yield_execution().await;
+            TimeoutFuture::new(Duration::from_secs(1)).await;
         }
         Ok(())
     });
