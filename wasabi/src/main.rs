@@ -5,7 +5,7 @@
 use core::time::Duration;
 use wasabi::executor::{Executor, Task, TimeoutFuture};
 use wasabi::hpet::global_timestamp;
-use wasabi::init::{init_allocator, init_basic_runtime, init_display, init_hpet, init_paging};
+use wasabi::init::{init_allocator, init_basic_runtime, init_display, init_hpet, init_paging, init_pci};
 use wasabi::print::{hexdump, set_global_vram_writer};
 // use wasabi::qemu::{exit_qemu, QemuExitCode};
 use wasabi::serial::SerialPort;
@@ -47,6 +47,7 @@ fn efi_main(image_handle: EfiHandle, efi_system_table: &EfiSystemTable) {
     init_paging(&memory_map);
 
     init_hpet(acpi);
+    init_pci(acpi);
 
     let t0 = global_timestamp();
 
