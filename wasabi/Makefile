@@ -17,3 +17,6 @@ test:
 	cargo test
 
 all-check: fmt-check clippy test
+
+telnet-qemu:
+	telnet localhost 2345

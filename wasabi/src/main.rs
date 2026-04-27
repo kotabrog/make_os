@@ -5,9 +5,10 @@
 use core::time::Duration;
 use wasabi::executor::{Executor, Task, TimeoutFuture};
 use wasabi::hpet::global_timestamp;
-use wasabi::init::{init_allocator, init_basic_runtime, init_display, init_hpet, init_paging, init_pci};
+use wasabi::init::{
+    init_allocator, init_basic_runtime, init_display, init_hpet, init_paging, init_pci,
+};
 use wasabi::print::{hexdump, set_global_vram_writer};
-// use wasabi::qemu::{exit_qemu, QemuExitCode};
 use wasabi::serial::SerialPort;
 use wasabi::uefi::{init_vram, locate_loaded_image_protocol, EfiHandle, EfiSystemTable};
 use wasabi::x86::init_exceptions;
@@ -75,7 +76,7 @@ fn efi_main(image_handle: EfiHandle, efi_system_table: &EfiSystemTable) {
         info!("Started to monitor serial port");
         loop {
             if let Some(v) = sp.try_read() {
-                let c = char::from_u32(v as u32);
+                let c = core::char::from_u32(v as u32);
                 info!("serial input: {v:#04X} {c:?}");
             }
             TimeoutFuture::new(Duration::from_millis(20)).await;

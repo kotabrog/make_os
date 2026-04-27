@@ -5,6 +5,7 @@ use crate::allocator::ALLOCATOR;
 use crate::graphics::{draw_test_pattern, fill_rect, Bitmap};
 use crate::hpet::{set_global_hpet, Hpet};
 use crate::info;
+use crate::pci::Pci;
 use crate::uefi::{
     exit_from_efi_boot_services, EfiHandle, EfiMemoryType, EfiMemoryType::*, EfiSystemTable,
     MemoryMapHolder, VramBufferInfo,
@@ -86,5 +87,7 @@ pub fn init_pci(acpi: &AcpiRsdpStruct) {
                 info!("{}", e)
             }
         }
+        let pci = Pci::new(mcfg);
+        pci.probe_devices();
     }
 }
