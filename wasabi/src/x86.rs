@@ -59,12 +59,12 @@ pub enum TranslationResult {
 }
 
 #[repr(transparent)]
-pub struct Entry<const LEVEL: usize, const SHIFT: usize, NEXT> {
+pub struct Entry<const LEVEL: usize, NEXT> {
     value: u64,
     next_type: PhantomData<NEXT>,
 }
 
-impl<const LEVEL: usize, const SHIFT: usize, NEXT> Entry<LEVEL, SHIFT, NEXT> {
+impl<const LEVEL: usize, NEXT> Entry<LEVEL, NEXT> {
     fn read_value(&self) -> u64 {
         self.value
     }
@@ -139,24 +139,24 @@ impl<const LEVEL: usize, const SHIFT: usize, NEXT> Entry<LEVEL, SHIFT, NEXT> {
     }
 }
 
-impl<const LEVEL: usize, const SHIFT: usize, NEXT> fmt::Display for Entry<LEVEL, SHIFT, NEXT> {
+impl<const LEVEL: usize, NEXT> fmt::Display for Entry<LEVEL, NEXT> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         self.format(f)
     }
 }
 
-impl<const LEVEL: usize, const SHIFT: usize, NEXT> fmt::Debug for Entry<LEVEL, SHIFT, NEXT> {
+impl<const LEVEL: usize, NEXT> fmt::Debug for Entry<LEVEL, NEXT> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         self.format(f)
     }
 }
 
 #[repr(align(4096))]
-pub struct Table<const LEVEL: usize, const SHIFT: usize, NEXT> {
-    entry: [Entry<LEVEL, SHIFT, NEXT>; 512],
+pub struct Table<const LEVEL: usize, NEXT> {
+    entry: [Entry<LEVEL, NEXT>; 512],
 }
 
-impl<const LEVEL: usize, const SHIFT: usize, NEXT: fmt::Debug> Table<LEVEL, SHIFT, NEXT> {
+impl<const LEVEL: usize, NEXT: fmt::Debug> Table<LEVEL, NEXT> {
     fn format(&self, f: &mut fmt::Formatter) -> fmt::Result {
         writeln!(f, "L{}Table @ {:#p} {{", LEVEL, self)?;
         for i in 0..512 {
@@ -169,27 +169,31 @@ impl<const LEVEL: usize, const SHIFT: usize, NEXT: fmt::Debug> Table<LEVEL, SHIF
         write!(f, "}}")
     }
 
+    const fn index_shift() -> usize {
+        (LEVEL - 1) * 9 + 12
+    }
+
     pub fn next_level(&self, index: usize) -> Option<&NEXT> {
         self.entry.get(index).and_then(|e| e.table().ok())
     }
 
     fn calc_index(&self, addr: u64) -> usize {
-        ((addr >> SHIFT) & 0b1_1111_1111) as usize
+        ((addr >> Self::index_shift()) & 0b1_1111_1111) as usize
     }
 }
 
-impl<const LEVEL: usize, const SHIFT: usize, NEXT: fmt::Debug> fmt::Debug
-    for Table<LEVEL, SHIFT, NEXT>
+impl<const LEVEL: usize, NEXT: fmt::Debug> fmt::Debug
+    for Table<LEVEL, NEXT>
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         self.format(f)
     }
 }
 
-pub type PT = Table<1, 12, [u8; PAGE_SIZE]>;
-pub type PD = Table<2, 21, PT>;
-pub type PDPT = Table<3, 30, PD>;
-pub type PML4 = Table<4, 39, PDPT>;
+pub type PT = Table<1, [u8; PAGE_SIZE]>;
+pub type PD = Table<2, PT>;
+pub type PDPT = Table<3, PD>;
+pub type PML4 = Table<4, PDPT>;
 
 impl PML4 {
     pub fn new() -> Box<Self> {
@@ -641,9 +645,8 @@ impl IdtDescriptor {
         segment_selector: u16,
         ist_index: u8,
         attr: IdtAttr,
-        f: unsafe extern "sysv64" fn(),
+        handler_addr: usize,
     ) -> Self {
-        let handler_addr = f as *const unsafe extern "sysv64" fn() as usize;
         Self {
             offset_low: handler_addr as u16,
             offset_mid: (handler_addr >> 16) as u16,
@@ -678,44 +681,44 @@ impl Idt {
             segment_selector,
             1,
             IdtAttr::IntGateDPL0,
-            int_handler_unimplemented,
+            int_handler_unimplemented as usize,
         ); 0x100];
         entries[3] = IdtDescriptor::new(
             segment_selector,
             1,
             // Set DPL=3 to allow user land to make this interrupt (e.g. via int3 op)
             IdtAttr::IntGateDPL3,
-            interrupt_entrypoint3,
+            interrupt_entrypoint3 as usize,
         );
         entries[6] = IdtDescriptor::new(
             segment_selector,
             1,
             IdtAttr::IntGateDPL0,
-            interrupt_entrypoint6,
+            interrupt_entrypoint6 as usize,
         );
         entries[8] = IdtDescriptor::new(
             segment_selector,
             2,
             IdtAttr::IntGateDPL0,
-            interrupt_entrypoint8,
+            interrupt_entrypoint8 as usize,
         );
         entries[13] = IdtDescriptor::new(
             segment_selector,
             1,
             IdtAttr::IntGateDPL0,
-            interrupt_entrypoint13,
+            interrupt_entrypoint13 as usize,
         );
         entries[14] = IdtDescriptor::new(
             segment_selector,
             1,
             IdtAttr::IntGateDPL0,
-            interrupt_entrypoint14,
+            interrupt_entrypoint14 as usize,
         );
         entries[32] = IdtDescriptor::new(
             segment_selector,
             1,
             IdtAttr::IntGateDPL0,
-            interrupt_entrypoint32,
+            interrupt_entrypoint32 as usize,
         );
         let limit = size_of_val(&entries) as u16;
         let entries = Box::pin(entries);
